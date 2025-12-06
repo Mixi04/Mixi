@@ -1,173 +1,248 @@
-import React, { useState } from 'react';
-import { supabase } from '../lib/supabaseClient';
-import { LogoIcon } from './icons';
-import { Provider } from '@supabase/supabase-js';
+
+import React, { useState, useEffect } from 'react';
+import { UserState, AuthMode } from '../types';
+import { supabase } from '../supabaseClient';
+import { X, Lock, User, ArrowRight, AlertCircle, Share2, CheckCircle } from 'lucide-react';
 
 interface AuthModalProps {
-  show: boolean;
+  onLogin: (user: Partial<UserState>) => void;
   onClose: () => void;
-  view: 'signIn' | 'signUp';
-  setView: (view: 'signIn' | 'signUp') => void;
+  initialMode: AuthMode;
 }
 
-export const AuthModal: React.FC<AuthModalProps> = ({ show, onClose, view, setView }) => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [username, setUsername] = useState('');
-  const [loading, setLoading] = useState(false);
+const AuthModal: React.FC<AuthModalProps> = ({ onLogin, onClose, initialMode }) => {
+  const [mode, setMode] = useState<AuthMode>(initialMode);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [isReferralLocked, setIsReferralLocked] = useState(false);
+  const [formData, setFormData] = useState({
+    username: '',
+    password: '',
+    referralCode: ''
+  });
 
-  const handleAuth = async (e: React.FormEvent) => {
+  // Check URL for referral code on mount (Query Param OR Path)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const refParam = params.get('ref');
+    
+    if (refParam) {
+        setFormData(prev => ({ ...prev, referralCode: refParam }));
+        setIsReferralLocked(true);
+        return;
+    }
+
+    const path = window.location.pathname.replace('/', '');
+    const reservedRoutes = ['crash', 'coinflip', 'mines', 'leaderboard', 'affiliates', 'settings', 'profile', 'blackjack', ''];
+    
+    if (path && !reservedRoutes.includes(path.toLowerCase())) {
+        setFormData(prev => ({ ...prev, referralCode: path }));
+        setIsReferralLocked(true);
+    }
+  }, []);
+
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    if (!formData.username || !formData.password) return;
+
+    setIsLoading(true);
     setError(null);
+    setSuccessMsg(null);
+
+    const cleanUsername = formData.username.trim().replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+    const syntheticEmail = `${cleanUsername}@moonblox.com`;
 
     try {
-        if (view === 'signUp') {
-            if (!username) {
-                setError("Username is required.");
-                setLoading(false);
-                return;
-            }
-            const { error: signUpError } = await supabase.auth.signUp({
-                email,
-                password,
+        if (mode === 'SIGNUP') {
+            const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+                email: syntheticEmail,
+                password: formData.password,
                 options: {
                     data: {
-                        username: username,
-                        avatar_url: `https://picsum.photos/seed/${username}/40/40` // Default avatar
+                        username: formData.username,
+                        invited_by_code: formData.referralCode || null
                     }
                 }
             });
             if (signUpError) throw signUpError;
-            // Optionally, show a "check your email" message
+            
+            // Auto-login attempt immediately after signup
+            const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+                email: syntheticEmail,
+                password: formData.password
+            });
+
+            if (signInError || !signInData.session) {
+                 // Account created but session not active (likely needs email verify or latency)
+                 setMode('LOGIN');
+                 setSuccessMsg('Account created! Please log in to continue.');
+                 setIsLoading(false);
+                 return;
+            }
+            
+            // Login successful
             onClose();
 
-        } else { // 'signIn'
-            const { error: signInError } = await supabase.auth.signInWithPassword({
-                email,
-                password,
+        } else {
+            // LOGIN FLOW
+             const { data, error } = await supabase.auth.signInWithPassword({
+                email: syntheticEmail,
+                password: formData.password
             });
-            if (signInError) throw signInError;
+            if (error) {
+                 if (error.message.includes('Invalid login credentials')) {
+                     throw new Error('Incorrect username or password');
+                 }
+                 throw error;
+            }
             onClose();
         }
     } catch (err: any) {
-        setError(err.error_description || err.message);
+        setError(err.message || 'Authentication failed');
     } finally {
-        setLoading(false);
+        setIsLoading(false);
     }
   };
-  
-  const handleOAuthSignIn = async (provider: Provider) => {
-    setLoading(true);
-    setError(null);
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: {
-        redirectTo: window.location.origin,
-        queryParams: {
-          prompt: 'select_account',
-        },
-      },
-    });
-    if (error) {
-      setError(error.message);
-      setLoading(false);
-    }
-    // On success, the browser will redirect, so no need to set loading to false.
-  };
-
-  if (!show) {
-    return null;
-  }
 
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 modal-backdrop" onClick={onClose}>
-      <div 
-        className="bg-card w-full max-w-4xl min-h-[600px] rounded-2xl flex overflow-hidden shadow-2xl border border-outline modal-content"
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Decorative Left Panel */}
-        <div 
-            className="hidden md:block w-1/3 bg-background p-8 relative overflow-hidden"
-            style={{
-                backgroundImage: 'url(https://i.imgur.com/BLxw7CY.png)',
-                backgroundPosition: 'center',
-                backgroundSize: '140%',
-                backgroundRepeat: 'no-repeat',
-            }}
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md animate-fade-in p-4">
+      <div className="relative w-full max-w-md bg-[#151B25] border border-[#2A3441] rounded-3xl p-8 shadow-2xl overflow-hidden animate-slide-up flex flex-col">
+        
+        <button 
+          onClick={onClose}
+          className="absolute top-4 right-4 p-2 text-gray-500 hover:text-white hover:bg-white/10 rounded-full transition-colors z-20"
         >
+          <X className="w-5 h-5" />
+        </button>
+
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-blox-accent to-yellow-600 shadow-lg shadow-yellow-500/20 mb-4">
+             <User className="text-black w-7 h-7 font-bold" strokeWidth={3} />
+          </div>
+          <h2 className="text-3xl font-black text-white uppercase tracking-tight">
+            {mode === 'SIGNUP' ? 'Create Account' : 'Welcome Back'}
+          </h2>
+          <p className="text-gray-500 text-sm mt-2 font-medium">
+            {mode === 'SIGNUP' ? 'Join the winning team today.' : 'Enter your credentials to continue.'}
+          </p>
         </div>
 
-        {/* Auth Form */}
-        <div className="w-full md:w-2/3 p-6 sm:p-8 flex flex-col justify-center">
-          <div className="flex justify-between items-start mb-6">
-             <div className="flex items-center space-x-2">
-                <LogoIcon className="h-8 w-8 text-white" />
-                <h2 className="text-2xl font-bold text-white">{view === 'signIn' ? 'Sign In' : 'Create Account'}</h2>
-             </div>
-            <button onClick={onClose} className="p-2 text-text-muted hover:text-white" aria-label="Close">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-            </button>
-          </div>
+        {error && (
+            <div className="bg-red-500/10 border border-red-500/20 text-red-500 p-4 rounded-xl text-xs font-bold mb-6 flex items-center gap-3 animate-shake">
+                <AlertCircle size={18} className="shrink-0" />
+                {error}
+            </div>
+        )}
 
-            {error && <p className="bg-red-500/20 text-red-400 text-sm p-3 rounded-md mb-4">{error}</p>}
+        {successMsg && (
+            <div className="bg-green-500/10 border border-green-500/20 text-green-500 p-4 rounded-xl text-xs font-bold mb-6 flex items-center gap-3 animate-slide-up">
+                <CheckCircle size={18} className="shrink-0" />
+                {successMsg}
+            </div>
+        )}
 
-          <form onSubmit={handleAuth} className="space-y-4">
-            {view === 'signUp' && (
-                <div>
-                    <label className="text-sm font-medium text-text-muted" htmlFor="email">Email</label>
-                    <input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} required className="w-full bg-background border border-outline rounded-md p-3 mt-1 text-sm focus:ring-1 focus:ring-accent-green focus:outline-none"/>
+        <form onSubmit={handleFormSubmit} className="space-y-5 mb-8">
+            <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider ml-1">Username</label>
+                <div className="relative group">
+                    <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 w-5 h-5 group-focus-within:text-blox-accent transition-colors" />
+                    <input 
+                        type="text" 
+                        placeholder="Enter your username"
+                        value={formData.username}
+                        onChange={(e) => setFormData({...formData, username: e.target.value})}
+                        className="w-full bg-[#0B0E14] border-2 border-[#2F2B3E] text-white rounded-xl py-4 pl-12 pr-4 outline-none focus:border-blox-accent transition-all font-bold text-sm placeholder-gray-700"
+                        required
+                        autoFocus
+                    />
+                </div>
+            </div>
+
+            <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider ml-1">Password</label>
+                <div className="relative group">
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 w-5 h-5 group-focus-within:text-blox-accent transition-colors" />
+                    <input 
+                        type="password" 
+                        placeholder="Enter your password"
+                        value={formData.password}
+                        onChange={(e) => setFormData({...formData, password: e.target.value})}
+                        className="w-full bg-[#0B0E14] border-2 border-[#2F2B3E] text-white rounded-xl py-4 pl-12 pr-4 outline-none focus:border-blox-accent transition-all font-bold text-sm placeholder-gray-700"
+                        required
+                    />
+                </div>
+            </div>
+
+            {mode === 'SIGNUP' && (
+                <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider ml-1">Referral Code (Optional)</label>
+                    <div className="relative group">
+                        {isReferralLocked ? (
+                             <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-500 w-5 h-5" />
+                        ) : (
+                             <Share2 className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 w-5 h-5 group-focus-within:text-blox-accent transition-colors" />
+                        )}
+                        <input 
+                            type="text" 
+                            placeholder="Promo Code"
+                            value={formData.referralCode}
+                            onChange={(e) => !isReferralLocked && setFormData({...formData, referralCode: e.target.value})}
+                            readOnly={isReferralLocked}
+                            className={`w-full bg-[#0B0E14] border-2 text-white rounded-xl py-4 pl-12 pr-20 outline-none transition-all font-bold text-sm placeholder-gray-700 
+                                ${isReferralLocked 
+                                    ? 'border-emerald-500/50 focus:border-emerald-500 cursor-not-allowed text-emerald-400' 
+                                    : 'border-[#2F2B3E] focus:border-blox-accent'}`}
+                        />
+                        {isReferralLocked && (
+                            <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1 bg-emerald-500/20 text-emerald-500 px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-wide">
+                                <CheckCircle size={10} />
+                                Applied
+                            </div>
+                        )}
+                    </div>
                 </div>
             )}
-            <div>
-              <label className="text-sm font-medium text-text-muted" htmlFor="username">{view === 'signIn' ? 'Username or Email' : 'Username'}</label>
-              <input id="username" type={view === 'signIn' ? 'text' : 'text'} value={view === 'signIn' ? email : username} onChange={e => view === 'signIn' ? setEmail(e.target.value) : setUsername(e.target.value)} required className="w-full bg-background border border-outline rounded-md p-3 mt-1 text-sm focus:ring-1 focus:ring-accent-green focus:outline-none"/>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-text-muted" htmlFor="password">Password</label>
-              <input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} required className="w-full bg-background border border-outline rounded-md p-3 mt-1 text-sm focus:ring-1 focus:ring-accent-green focus:outline-none"/>
-            </div>
 
-            <div className="flex justify-between items-center text-sm">
-                <label className="flex items-center space-x-2 text-text-muted cursor-pointer">
-                    <input type="checkbox" className="w-4 h-4 rounded bg-background border-outline text-accent-green focus:ring-accent-green"/>
-                    <span>Remember me</span>
-                </label>
-                <a href="#" className="text-accent-green hover:underline">Forgot your password?</a>
-            </div>
-
-            <button type="submit" disabled={loading} className="w-full bg-accent-green text-white font-semibold py-3 rounded-md transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed">
-              {loading ? 'Processing...' : (view === 'signIn' ? 'Start Playing' : 'Create Account')}
+            <button 
+                type="submit"
+                disabled={isLoading}
+                className="w-full bg-blox-accent hover:bg-blox-accentHover text-blox-surface font-black py-4 rounded-xl transition-all hover:shadow-lg hover:shadow-yellow-500/20 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed mt-4 flex items-center justify-center gap-2 text-base"
+            >
+                {isLoading ? (
+                     <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin"></div>
+                ) : (
+                    <>
+                        {mode === 'SIGNUP' ? 'START PLAYING' : 'LOG IN NOW'}
+                        <ArrowRight size={20} strokeWidth={3} />
+                    </>
+                )}
             </button>
-          </form>
-          
-          <div className="flex items-center my-6">
-            <hr className="flex-grow border-t border-outline"/>
-            <span className="mx-4 text-xs font-semibold text-text-muted">OR</span>
-            <hr className="flex-grow border-t border-outline"/>
-          </div>
+        </form>
 
-          <div className="flex justify-center">
-            <button className="g-button" onClick={() => handleOAuthSignIn('google')}>
-                <svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid" viewBox="0 0 256 262" className="g-svg">
-                    <path fill="#4285F4" d="M255.878 133.451c0-10.734-.871-18.567-2.756-26.69H130.55v48.448h71.947c-1.45 12.04-9.283 30.172-26.69 42.356l-.244 1.622 38.755 30.023 2.685.268c24.659-22.774 38.875-56.282 38.875-96.027" className="g-blue"></path>
-                    <path fill="#34A853" d="M130.55 261.1c35.248 0 64.839-11.605 86.453-31.622l-41.196-31.913c-11.024 7.688-25.82 13.055-45.257 13.055-34.523 0-63.824-22.773-74.269-54.25l-1.531.13-40.298 31.187-.527 1.465C35.393 231.798 79.49 261.1 130.55 261.1" className="g-green"></path>
-                    <path fill="#FBBC05" d="M56.281 156.37c-2.756-8.123-4.351-16.827-4.351-25.82 0-8.994 1.595-17.697 4.206-25.82l-.073-1.73L15.26 71.312l-1.335.635C5.077 89.644 0 109.517 0 130.55s5.077 40.905 13.925 58.602l42.356-32.782" className="g-yellow"></path>
-                    <path fill="#EB4335" d="M130.55 50.479c24.514 0 41.05 10.589 50.479 19.438l36.844-35.974C195.245 12.91 165.798 0 130.55 0 79.49 0 35.393 29.301 13.925 71.947l42.211 32.783c10.59-31.477 39.891-54.251 74.414-54.251" className="g-red"></path>
-                </svg>
-                <span className="g-text">Continue with Google</span>
-            </button>
-          </div>
-
-          <p className="text-center text-sm text-text-muted mt-6">
-            {view === 'signIn' ? "Don't have an account?" : "Already have an account?"}
-            <button onClick={() => setView(view === 'signIn' ? 'signUp' : 'signIn')} className="font-semibold text-accent-green hover:underline ml-1">
-              {view === 'signIn' ? 'Sign up' : 'Sign in'}
-            </button>
-          </p>
+        <div className="text-center border-t border-[#2A3441] pt-6">
+            <p className="text-gray-400 text-sm font-medium">
+                {mode === 'SIGNUP' ? 'Already have an account?' : 'New to MoonBlox?'}
+                <button 
+                    onClick={() => {
+                        setMode(mode === 'SIGNUP' ? 'LOGIN' : 'SIGNUP');
+                        setError(null);
+                        setSuccessMsg(null);
+                        if (!isReferralLocked) {
+                            setFormData({ username: '', password: '', referralCode: '' });
+                        } else {
+                            setFormData(prev => ({ ...prev, username: '', password: '' }));
+                        }
+                    }}
+                    className="ml-2 text-blox-accent hover:text-white font-black uppercase transition-colors"
+                >
+                    {mode === 'SIGNUP' ? 'Log In' : 'Sign Up'}
+                </button>
+            </p>
         </div>
       </div>
     </div>
   );
 };
+
+export default AuthModal;

@@ -3,38 +3,38 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>MoonBlox - Premium R$ Market</title>
+    <title>MoonBlox | Premier Crypto Casino</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script>
       tailwind.config = {
         theme: {
           extend: {
             fontFamily: {
-              sans: ['Inter', 'sans-serif'],
+              sans: ['"Plus Jakarta Sans"', 'sans-serif'],
             },
             colors: {
               blox: {
-                background: '#020617', // Deep Slate/Black
-                surface: '#0F172A',     // Slate-900
-                surfaceHighlight: '#1E293B', // Slate-800
-                border: '#334155',      // Slate-700
-                accent: '#F59E0B',      // Gold Accent
-                accentHover: '#D97706', // Darker Gold
-                secondary: '#6366F1',   // Indigo
-                danger: '#F43F5E',      // Red
-                success: '#10B981',     // Green
-                text: '#F8FAFC',        // Slate-50
-                muted: '#94A3B8'        // Slate-400
+                background: '#0B0E14', // Darker, richer black
+                surface: '#151921',     // Slight contrast
+                surfaceHighlight: '#1F242F', 
+                border: '#2A303C',      
+                accent: '#F59E0B',      
+                accentHover: '#D97706', 
+                secondary: '#6366F1',   
+                danger: '#F43F5E',      
+                success: '#10B981',     
+                text: '#F8FAFC',        
+                muted: '#64748B'        
               }
             },
             animation: {
               'spin-slow': 'spin 3s linear infinite',
               'pulse-slow': 'pulse 8s cubic-bezier(0.4, 0, 0.6, 1) infinite',
               'bounce-short': 'bounce 0.5s infinite',
-              'fade-in': 'fadeIn 0.4s ease-out forwards',
-              'slide-up': 'slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards',
-              'scale-in': 'scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+              'fade-in': 'fadeIn 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards',
+              'slide-up': 'slideUp 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards',
+              'scale-in': 'scaleIn 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards',
               'shake': 'shake 0.4s cubic-bezier(.36,.07,.19,.97) both',
               'pulse-fast': 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
               'fog-drift': 'fogDrift 20s ease-in-out infinite alternate',
@@ -44,15 +44,15 @@
             },
             keyframes: {
               fadeIn: {
-                '0%': { opacity: '0' },
-                '100%': { opacity: '1' },
+                '0%': { opacity: '0', transform: 'translateY(10px)' },
+                '100%': { opacity: '1', transform: 'translateY(0)' },
               },
               slideUp: {
                 '0%': { opacity: '0', transform: 'translateY(20px)' },
                 '100%': { opacity: '1', transform: 'translateY(0)' },
               },
               scaleIn: {
-                '0%': { opacity: '0', transform: 'scale(0.95)' },
+                '0%': { opacity: '0', transform: 'scale(0.98)' },
                 '100%': { opacity: '1', transform: 'scale(1)' },
               },
               shake: {
@@ -67,7 +67,7 @@
               },
               float: {
                 '0%, 100%': { transform: 'translateY(0)' },
-                '50%': { transform: 'translateY(-20px)' },
+                '50%': { transform: 'translateY(-10px)' },
               },
               twinkle: {
                 '0%, 100%': { opacity: '0.3', transform: 'scale(0.8)' },
@@ -80,23 +80,25 @@
     </script>
     <style>
       body {
-        background-color: #020617;
+        background-color: #0B0E14;
         color: #F8FAFC;
         overflow-x: hidden;
       }
-      /* Custom scrollbar */
+      
+      /* Professional Scrollbar */
       ::-webkit-scrollbar {
         width: 6px;
+        height: 6px;
       }
       ::-webkit-scrollbar-track {
-        background: #020617; 
+        background: transparent; 
       }
       ::-webkit-scrollbar-thumb {
-        background: #334155; 
-        border-radius: 3px;
+        background: #2A303C; 
+        border-radius: 99px;
       }
       ::-webkit-scrollbar-thumb:hover {
-        background: #475569; 
+        background: #3F4756; 
       }
       
       .scrollbar-hide::-webkit-scrollbar {
@@ -120,6 +122,29 @@
       .rotate-y-180 {
         transform: rotateY(180deg);
       }
+
+      /* Textures */
+      .bg-grid-pattern {
+        background-size: 40px 40px;
+        background-image: linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+                          linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+      }
+      .bg-noise {
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
+      }
+      
+      /* Glassmorphism Utilities */
+      .glass-panel {
+        background: rgba(21, 25, 33, 0.7);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+      }
+      
+      .glass-panel-hover:hover {
+        background: rgba(31, 36, 47, 0.8);
+        border-color: rgba(255, 255, 255, 0.1);
+      }
     </style>
   <script type="importmap">
 {
@@ -128,7 +153,8 @@
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
     "react/": "https://aistudiocdn.com/react@^19.2.1/",
     "react": "https://aistudiocdn.com/react@^19.2.1",
-    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.556.0"
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.556.0",
+    "@supabase/supabase-js": "https://aistudiocdn.com/@supabase/supabase-js@2.39.0"
   }
 }
 </script>

@@ -1,4 +1,5 @@
 
+
 export enum GameType {
   CRASH = 'CRASH',
   COINFLIP = 'COINFLIP',
@@ -15,6 +16,7 @@ export enum GameType {
 export type AuthMode = 'LOGIN' | 'SIGNUP';
 
 export interface UserState {
+  id?: string; // Unique ID for DB sync
   balance: number;
   username: string;
   avatar?: string;
@@ -23,15 +25,32 @@ export interface UserState {
   level: number;
   xp: number;
   claimedLevels: number[]; // Array of level numbers that have been claimed
+  usernameChanged?: boolean; // Track if user has already changed their name
+  totalWagered: number; // Total amount wagered all-time
+  referralCode?: string;
+  affiliateEarnings?: number;
+  totalReferred?: number;
+}
+
+export interface PublicProfile {
+  id: string;
+  username: string;
+  avatar?: string;
+  level: number;
+  totalWagered: number;
+  createdAt: string;
 }
 
 export interface ChatMessage {
   id: string;
+  user_id?: string; // Links to auth user
   type: 'self' | 'other' | 'bot' | 'system';
   username: string;
+  avatar?: string;
   text: string;
-  timestamp: Date;
-  rank?: 'ADMIN' | 'MOD' | 'VIP' | 'USER';
+  created_at?: string; // Database timestamp
+  timestamp: Date; // Frontend object
+  rank?: 'OWNER' | 'ADMIN' | 'MOD' | 'VIP' | 'USER' | 'SYSTEM';
 }
 
 export interface GameProps {
